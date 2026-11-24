@@ -9,8 +9,16 @@
 #include "../Include/Drawing.h"
 #include "../Include/Unity.h"
 
+bool esp_enabled = true;
+bool aim_enabled = false;
+float fov = 150.0f;
+
 void DrawMenu() {
-    ImGui::ShowDemoWindow();
+    ImGui::Begin("MEU CHEAT INTERNAL - FF");
+    ImGui::Checkbox("Ativar ESP", &esp_enabled);
+    ImGui::Checkbox("Ativar Aimbot", &aim_enabled);
+    ImGui::SliderFloat("FOV Aimbot", &fov, 10.0f, 400.0f);
+    ImGui::End();
 }
 
 void *thread(void *) {

@@ -1,0 +1,67 @@
+name: Compilar pacote mc1h de teste
+
+on:
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: Tag da release que contém o XAPK original
+        required: true
+        default: mc1h-input
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mc1h-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Preparar SDK e NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --sdk_root="${ANDROID_HOME}" --install 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+      - name: Compilar componentes Android
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/build.py --components-only
+      - name: Exportar ferramentas de empacotamento local
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/export_packaging_tools.py
+      - name: Compilar e assinar o pacote de teste
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ github.event.release.tag_name || inputs.source_tag }}
+        run: python3 scripts/build.py --source-tag "$SOURCE_TAG"
+      - name: Disponibilizar pacote, biblioteca e relatório
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mc1h-menu-teste-armv7
+          path: output/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+      - name: Disponibilizar componentes compilados
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mc1h-componentes-armv7
+          path: output/
+          if-no-files-found: error
+          retention-days: 3
